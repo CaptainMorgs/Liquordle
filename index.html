@@ -373,7 +373,7 @@
     <script>
         let currentQuestion = 0;
         let score = 0;
-        let totalQuestions = 10;
+        let totalQuestions = 3;
         let questions = [];
         let gameActive = false;
 
@@ -400,25 +400,45 @@
 
         ];
 
+        let usedQuestions = new Set(); // track used questions
+
         function generateQuestion() {
-            const type = questionTypes[Math.floor(Math.random() * questionTypes.length)];
-            let player1, player2;
-            do {
+            const maxAttempts = 50; // to prevent infinite loops
+            let attempt = 0;
+
+            while (attempt < maxAttempts) {
+                attempt++;
+
+                const type = questionTypes[Math.floor(Math.random() * questionTypes.length)];
                 const shuffled = [...playersData].sort(() => Math.random() - 0.5);
-                player1 = shuffled[0];
-                player2 = shuffled[1];
-            } while (player1 === player2 || type.getValue(player1) === type.getValue(player2));
+                const player1 = shuffled[0];
+                const player2 = shuffled[1];
 
-            const correctPlayer = type.getValue(player1) > type.getValue(player2) ? player1 : player2;
+                if (player1 === player2 || type.getValue(player1) === type.getValue(player2)) continue;
 
-            return {
-                question: type.template,
-                options: [
-                    { text: player1.name, isCorrect: player1 === correctPlayer, value: type.format(type.getValue(player1)), image: player1.image },
-                    { text: player2.name, isCorrect: player2 === correctPlayer, value: type.format(type.getValue(player2)), image: player2.image }
-                ]
-            };
+                // create a unique key for this question
+                const questionKey = [type.type, player1.name, player2.name].sort().join('-');
+
+                if (usedQuestions.has(questionKey)) continue; // already asked
+
+                usedQuestions.add(questionKey);
+
+                const correctPlayer = type.getValue(player1) > type.getValue(player2) ? player1 : player2;
+
+                return {
+                    question: type.template,
+                    options: [
+                        { text: player1.name, isCorrect: player1 === correctPlayer, value: type.format(type.getValue(player1)), image: player1.image },
+                        { text: player2.name, isCorrect: player2 === correctPlayer, value: type.format(type.getValue(player2)), image: player2.image }
+                    ]
+                };
+            }
+
+            // fallback if we run out of unique questions
+            console.warn("Could not generate a unique question after many attempts");
+            return null;
         }
+
 
         function startQuiz() {
             document.getElementById('startScreen').style.display = 'none';
@@ -515,7 +535,7 @@
             else emoji = '💩    ';
 
             const today = new Date();
-            const formattedDate = today.toLocaleDateString(); 
+            const formattedDate = today.toLocaleDateString();
             const resultText = `I scored ${score}/${total} on Liquordle! ${emoji} (${formattedDate})`;
 
 
